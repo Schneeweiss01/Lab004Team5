@@ -345,7 +345,7 @@ void loop()
       if(ENC_ISMotorRunning())                                                                //If the motor is running
       {
         MoveTo(ucMotorState, CR1_ui8LeftWheelSpeed,CR1_ui8RightWheelSpeed);                   //send the motor state (which direction its driving) as well as the wheel speeds to the MoveTo function in motion.h that writes the speed
-                                                                                              //and directions to the motors
+                                                                                               //and directions to the motors
       }
       
     }
