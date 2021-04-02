@@ -2,10 +2,6 @@
 /* MSE 2202 
  * Western Engineering Design Project Code
  * By: Benjamin Schneeweiss, Annabelle Pundaky, Evan Michaelson, Harrison Angellotti
- * First Version of code that drives Robot straight, then turns left, then straight, then turns left, then stops
- * Still not Included: Have not included Rope Climbing Mechanism, have not adjusted wheel speeds
- * 
- * v2 cleaned through some code that was required in lab but not for final project
 */
 
 /*
@@ -60,6 +56,7 @@ const int ciEncoderRightB = 13;
 const int ciSmartLED = 25;
 const int ciStepperMotorDir = 22;
 const int ciStepperMotorStep = 21;
+const int motorSpinner = 23;
 
 volatile uint32_t vui32test1;
 volatile uint32_t vui32test2;
@@ -159,6 +156,7 @@ void setup() {
    setupMotion();
    pinMode(ciHeartbeatLED, OUTPUT);
    pinMode(ciPB1, INPUT_PULLUP);
+   pinMode(motorSpinner, OUTPUT);
 
    SmartLEDs.begin();                          // Initialize Smart LEDs object (required)
    SmartLEDs.clear();                          // Set all pixel colours to off
@@ -178,6 +176,7 @@ void loop()
   if (iButtonValue != iLastButtonState) {      // if value has changed
      CR1_ulLastDebounceTime = millis();        // reset the debouncing timer
      state = 0;
+     digitalWrite(motorSpinner, LOW);
      CR1_ulMotorTimerPrevious=millis();
   }
 
@@ -231,7 +230,11 @@ void loop()
            if( CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <=3750)//start correction       //Compare timer to another time that began at the beggining of the robot start. This ensure the robot drives straight for X seconds
             {
             ENC_SetDistance(100, 100);
-            ucMotorState = 1;               //This motor state corresponds to a switch statement in motion.h that tells the robot to move forward (by telling which motors to move, and in which direction to move them at what speed)
+             ledcWrite(2,0);
+             ledcWrite(1, 140);//ledcWrite(1,ui8LeftWorkingSpeed);//previously 151
+             ledcWrite(4,0);
+             ledcWrite(3, 140); //ledcWrite(3,ui8RightWorkingSpeed);//previously 130
+
             breakTimer=millis();
             }
             else                                                                              //Once enough time has passed
@@ -256,7 +259,15 @@ void loop()
             if(CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <= 800)                         //Continue to turn for X seconds 
           {
             ENC_SetDistance(-(ci8LeftTurn), ci8LeftTurn);                                     //set the distance for the turning phase
-            ucMotorState = 3;                                                                 //Make the correct wheels spin for robot to turn right
+
+          ledcWrite(1,0);
+          ledcWrite(2,ui8LeftWorkingSpeed);
+          ledcWrite(4,0);
+          ledcWrite(3,ui8RightWorkingSpeed);
+
+
+
+            
             breakTimer=millis();                                                              //start a timer for the breaks
           }
           else                                                                                //Like in case 1 this code simply makes the robot 'breaks' for a certain amount of time
@@ -278,7 +289,10 @@ void loop()
            if( CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <=5100)                          //poll a timer to ensure robot drives forward for correct duration
             {
             ENC_SetDistance(100, 100);                                                        //sets the correct distance
-            ucMotorState = 1;                                                                 //wheels rotate in correct direction to drive forward
+             ledcWrite(2,0);
+             ledcWrite(1, 140);//ledcWrite(1,ui8LeftWorkingSpeed);//previously 151
+             ledcWrite(4,0);
+             ledcWrite(3, 140); //ledcWrite(3,ui8RightWorkingSpeed);//previously 130
             breakTimer=millis();                                                              //starts a timer for the breaks
             }
             else                                                                              //Use the 'breaks'                                                            
@@ -303,7 +317,10 @@ void loop()
             if(CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <= 780)                         //Poll timer to ensure robot moves turns correct ammount
           {
             ENC_SetDistance(-(ci8LeftTurn), ci8LeftTurn);
-            ucMotorState = 2;                                                                 //Use the correct motors to turn right
+            ledcWrite(1,0);
+            ledcWrite(2,ui8LeftWorkingSpeed);
+            ledcWrite(4,0);
+            ledcWrite(3,ui8RightWorkingSpeed);
             breakTimer=millis();                                                              //Start a timer for the breaks
           }
           else
@@ -325,29 +342,20 @@ void loop()
            if( CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <=3750)                         //poll to ensure robot moves forward correct distance
             {
             ENC_SetDistance(100, 100);
-            ucMotorState = 1;                                                                 //makes both wheels spin forwards so robot moves forward
-            breakTimer=millis();                                                              //starts a timer for polling used in breaking sequence
-            //Insert code for rope mechanism to start spinning
+           ledcWrite(2,0);
+             ledcWrite(1, 142);//ledcWrite(1,ui8LeftWorkingSpeed);//previously 151
+             ledcWrite(4,0);
+             ledcWrite(3, 140); //ledcWrite(3,ui8RightWorkingSpeed);//previously 130
+             digitalWrite(motorSpinner, HIGH);
             }
             else                                                                              //in this case the breaks are not used because the robot will be pulling up the rope
             {
-                state = 5;
+                //code for whisker
               }
             }
-            if (state ==5)                                                                    //this case is the ascension phase
-            {
-              //add in code for climbing up rope
-              //add in code for whisker switch detection
-              //start timer for when whisker switch leaves floor
-            }
         }
-
-      if(ENC_ISMotorRunning())                                                                //If the motor is running
-      {
-        MoveTo(ucMotorState, CR1_ui8LeftWheelSpeed,CR1_ui8RightWheelSpeed);                   //send the motor state (which direction its driving) as well as the wheel speeds to the MoveTo function in motion.h that writes the speed
-                                                                                               //and directions to the motors
-      }
       
     }
+
+
   }
- }
