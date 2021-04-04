@@ -58,6 +58,11 @@ const int ciStepperMotorDir = 22;
 const int ciStepperMotorStep = 21;
 const int motorSpinner = 23;
 
+// ADD LIMIT SWITCH PIN (RN ASSUMING TO BE 20) // *********************************************************888
+
+const int switchPin = 20; // pin for limit switch in contact with ground
+int CLIMB = 0;
+
 volatile uint32_t vui32test1;
 volatile uint32_t vui32test2;
 
@@ -152,6 +157,10 @@ void setup() {
    WDT_vfFastWDTWarningCore1[8] = 0;
    WDT_vfFastWDTWarningCore1[9] = 0;
    WDT_ResetCore1(); 
+  
+  // ********************************************************************** ADDED CODE FOR ADDING LIMIT SWITCH NOT COMPLETE *****************************************8
+  
+  pinMode(switchPin, INPUT); //setting switchPin to an input device 
 
    setupMotion();
    pinMode(ciHeartbeatLED, OUTPUT);
@@ -169,6 +178,8 @@ void loop()
 
    //average the encoder tick times
    ENC_Averaging();//Essentially used as an indication of the speed of the motor
+  
+  int LimitSwitch = digitalRead(switchPin);
 
 //*************************************************************************************************
   //Code for pressing button to turn on/off the robot
@@ -356,6 +367,15 @@ void loop()
         }
       
     }
-
+  
+  // CODE FOR LIMIT SWITCH NOT IN PROPER ORDER ****************************************************************************************
+  
+  if (LimitSwitch == LOW) { // if the switch is low (no longer in contact with the ground) the climibing sequence begins
+    state = 5; //motion set to 5, meaning motors driving robot forward will stop
+    CR1_ulMotorTimerNow=millis();  } // timer started                                                 
+  
+  if (state == 5) //if motor state is set to 5, 
+    if (millis() - CR1_ulMotorTimerNow <= 1000) //if the difference between the current time and the started timer is greater than 1000 // THIS NUMBER IS SUBJECT TO CHANGE
+      digitalWrite(motorSpinner, LOW); //the motor stops spinning (has ascended rope)
 
   }
