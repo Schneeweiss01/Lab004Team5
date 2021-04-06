@@ -4,47 +4,8 @@
  * By: Benjamin Schneeweiss, Annabelle Pundaky, Evan Michaelson, Harrison Angellotti
 */
 
-/*
-  esp32                                           MSE-DuinoV2
-  pins         description                        Brd Jumpers /Labels                                                                  User (Fill in chart with user PIN usage) 
-  1             3v3                               PWR 3V3                                                                              3V3
-  2             gnd                               GND                                                                                  GND
-  3             GPIO15/AD2_3/T3/SD_CMD/           D15 (has connections in both 5V and 3V areas)                    
-  4             GPIO2/AD2_2/T2/SD_D0              D2(has connections in both 5V and 3V areas)  /INDICATORLED ( On ESP32 board )        Heartbeat LED
-  5             GPIO4/AD2_0/T0/SD_D1              D4(has connections in both 5V and 3V areas)                                          Left Motor, Channel A
-  6             GPIO16/RX2                        Slide Switch S1b                                                                     IR Receiver
-  7             GPIO17/TX2                        Slide Switch S2b                                                                     Left Encoder, Channel A
-  8             GPIO5                             D5 (has connections in both 5V and 3V areas)                                         Left Encoder, Channel B
-  9             GPIO18                            D18 (has connections in both 5V and 3V areas)                                        Left Motor, Channel B
-  10            GPIO19/CTS0                       D19 (has connections in both 5V and 3V areas)                                        Right Motor, Channel A
-  11            GPIO21                            D21/I2C_DA  
-  12            GPIO3/RX0                         RX0
-  13            GPIO1//TX0                        TX0
-  14            GPIO22/RTS1                       D22/I2C_CLK
-  15            GPIO23                            D23 (has connections in both 5V and 3V areas)  
-  16            EN                                JP4 (Labeled - RST) for reseting ESP32
-  17            GPI36/VP/AD1_0                    AD0                   
-  18            GPI39/VN/AD1_3/                   AD3
-  19            GPI34/AD1_6/                      AD6
-  20            GPI35/AD1_7                       Potentiometer R2 / AD7
-  21            GPIO32/AD1_4/T9                   Potentiometer R1 / AD4                                                               Pot 1 (R1)
-  22            GPIO33/AD1_5/T8                   IMon/D33  monitor board current
-  23            GPIO25/AD2_8/DAC1                 SK6812 Smart LEDs / D25                                                              Smart LEDs
-  24            GPIO26/A2_9/DAC2                  Push Button PB2                                                                      Limit switch
-  25            GPIO27/AD2_7/T7                   Push Button PB1                                                                      PB1
-  26            GPOP14/AD2_6/T6/SD_CLK            Slide Switch S2a                                                                     Right Encoder, Channel A
-  27            GPIO12/AD2_5/T5/SD_D2/            D12(has connections in both 5V and 3V areas)                                         Right Motor, Channel B
-  28            GPIO13/AD2_4/T4/SD_D3/            Slide Switch S1a                                                                     Right Encoder, Channel B
-  29            GND                               GND                                                                                  GND
-  30            VIN                               PWR 5V t 7V                                                                          PWR 5V to 7V
-*/
-
-
 //The code below assigns all pins to the name of device that is connected
-const int ciHeartbeatLED = 2;
-const int ciPB1 = 27;     
-const int ciPB2 = 26;      
-const int ciPot1 = A4;    //GPIO 32  - when JP2 has jumper installed Analog pin AD4 is connected to Poteniometer R1
+const int ciPB1 = 27;         
 const int ciMotorLeftA = 4;
 const int ciMotorLeftB = 18;
 const int ciMotorRightA = 19;
@@ -62,15 +23,21 @@ const int switchPin = 16;
 int switchState;                              //used to store if limit switch is high or low
 int state = 0;                                //Controls motion of robot
 unsigned long breakTimer=0;                   //VARIABLE FOR TIMER
+unsigned long CR1_ulMotorTimerPrevious;       //Used to determine when an event started
+unsigned long CR1_ulMotorTimerNow;            //used for polling of how long event has occured for           
+boolean btRun = false;
+boolean btToggle = true;
+int iButtonState;
+int iLastButtonState = HIGH;
 
 
 volatile uint32_t vui32test1;
 volatile uint32_t vui32test2;
 
+//Include all header files needed to run code
+
 #include "0_Core_Zero.h"
-
 #include <esp_task_wdt.h>
-
 #include <Adafruit_NeoPixel.h>
 #include <Math.h>
 #include "Motion.h";
@@ -89,6 +56,8 @@ const long CR1_clReadTimeout = 220;
 //Setup for turns
 const uint8_t ci8RightTurn = 18;
 const uint8_t ci8LeftTurn = 17;
+unsigned long CR1_ulMainTimerPrevious;        
+unsigned long CR1_ulMainTimerNow;  
 
 unsigned char CR1_ucMainTimerCaseCore1;
 uint8_t CR1_ui8LimitSwitch;
@@ -108,38 +77,23 @@ uint32_t CR1_u32Avg;
 unsigned long CR1_ulLastDebounceTime;
 unsigned long CR1_ulLastByteTime;
 
-unsigned long CR1_ulMainTimerPrevious;
-unsigned long CR1_ulMainTimerNow;
-
-unsigned long CR1_ulMotorTimerPrevious;
-unsigned long CR1_ulMotorTimerNow;
 unsigned char ucMotorStateIndex = 0;
 
 unsigned long CR1_ulHeartbeatTimerPrevious;
 unsigned long CR1_ulHeartbeatTimerNow;
 
 boolean btHeartbeat = true;
-boolean btRun = false;
-boolean btToggle = true;
-int iButtonState;
-int iLastButtonState = HIGH;
-
-// Declare our SK6812 SMART LED object:
-Adafruit_NeoPixel SmartLEDs(2, 25, NEO_GRB + NEO_KHZ400);
-// Argument 1 = Number of LEDs (pixels) in use
-// Argument 2 = ESP32 pin number 
-// Argument 3 = Pixel type flags, add together as needed:
-//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
-//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
-//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
-//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-//   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
 
 void setup() {
    Serial.begin(115200); 
-   
-   Core_ZEROInit();
+   setupMotion();
+   pinMode(ciPB1, INPUT_PULLUP);                //Set pushbutton 1 to input and use pullup resistor
+   pinMode(motorSpinner, OUTPUT);               //setup the motor spinner (rope climbing mechanism motor) as an output
+   pinMode(switchPin, INPUT_PULLUP);            //setup the limit switch as an input and use pullup resistor
 
+
+   //Setup of Variables not covered in class. These variables are used in the code for 0_Core_Zero.h and WDT.h
+   Core_ZEROInit();
    WDT_EnableFastWatchDogCore1();
    WDT_ResetCore1();
    WDT_vfFastWDTWarningCore1[0] = 0;
@@ -155,21 +109,10 @@ void setup() {
    WDT_vfFastWDTWarningCore1[8] = 0;
    WDT_vfFastWDTWarningCore1[9] = 0;
    WDT_ResetCore1(); 
-
-   setupMotion();
-   pinMode(ciHeartbeatLED, OUTPUT);
-   pinMode(ciPB1, INPUT_PULLUP);
-   pinMode(motorSpinner, OUTPUT);
-   pinMode(switchPin, INPUT_PULLUP);
 }
 
 void loop()
 {
-
-   //average the encoder tick times
-   ENC_Averaging();//Essentially used as an indication of the speed of the motor
-
-//*************************************************************************************************
   //Code for pressing button to turn on/off the robot
   int iButtonValue = digitalRead(ciPB1);       // read value of push button 1
   if (iButtonValue != iLastButtonState) {      // if value has changed
@@ -200,7 +143,8 @@ void loop()
  }
  iLastButtonState = iButtonValue;             // store button state onto last button state
  
-//The code below is used to start and set timers essential for Core0
+//The code below is used in many of the header files. We did not discuss these lines in class and so we have opted to not comment on them, or remove them in case
+   ENC_Averaging();//Essentially used as an indication of the speed of the motor
  CR1_ulMainTimerNow = micros();
  if(CR1_ulMainTimerNow - CR1_ulMainTimerPrevious >= CR1_ciMainTimer)
  {
@@ -208,15 +152,9 @@ void loop()
    WDT_ucCaseIndexCore0 = CR0_ucMainTimerCaseCore0;
    
    CR1_ulMainTimerPrevious = CR1_ulMainTimerNow;
-//*************************************************************************************************    
-       
-      //read pot 1 for motor speeds moved to here
-      CR1_ui8WheelSpeed = map(analogRead(ciPot1), 0, 4096, 130, 255);  // adjust to range that will produce motion (starts at 130 not 0 to produce a real speed and eliminate deadzone)
-      
-      CR1_ucMainTimerCaseCore1 = 2;//will skip repeating this 
+   CR1_ucMainTimerCaseCore1 = 2;//will skip repeating this 
+//*******************************************************************
 
-
-      
       if (btRun)                                                                              //If the button the button changes states, the robot will now run
       {
         
@@ -250,7 +188,7 @@ void loop()
           else if(state ==1)                                                                  //The robot will now have to turn right
           {
             CR1_ulMotorTimerNow=millis();                                                     //Poll a new timer
-            if(CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <= 1000)                         //Continue to turn for X seconds 
+            if(CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <= 1000)                        //Continue to turn for X seconds 
           {
             ENC_SetDistance(-(ci8LeftTurn), ci8LeftTurn);                                     //set the distance for the turning phase
           //Set the motors in the correct direction with correct speed
@@ -271,10 +209,10 @@ void loop()
               }
             }
           }
-          else if (state == 2)                                                                     //Move forward again
+          else if (state == 2)                                                                //Move forward again
         {
-          CR1_ulMotorTimerNow=millis();                                                        //start a timer
-           if( CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <=4850)                          //poll a timer to ensure robot drives forward for correct duration
+          CR1_ulMotorTimerNow=millis();                                                       //start a timer
+           if( CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <=4850)                         //poll a timer to ensure robot drives forward for correct duration
             {
             ENC_SetDistance(100, 100);                                                        //sets the correct distance
             //Set the motors in the correct direction with correct speed
@@ -301,7 +239,7 @@ void loop()
           else if(state ==3)                                                                  //Once again turn Right
           {
             CR1_ulMotorTimerNow=millis();                                                     //Begin timer for polling
-            if(CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <= 1000)                         //Poll timer to ensure robot moves turns correct ammount
+            if(CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <= 1000)                        //Poll timer to ensure robot moves turns correct ammount
           {
             ENC_SetDistance(-(ci8LeftTurn), ci8LeftTurn);                                     //Set wheels for turning
             ledcWrite(1,0);
@@ -321,7 +259,7 @@ void loop()
               }
             }
           }
-          else if (state == 4)                                                                     //Move forward one last time
+          else if (state == 4)                                                                //Move forward one last time
         {
           switchState = digitalRead(switchPin);                                               //read wether the limit switch is in contact with ground or not
           digitalWrite(motorSpinner, HIGH);                                                   //Spin rope climbing mechanism
@@ -333,15 +271,15 @@ void loop()
              ledcWrite(1, 140);
              ledcWrite(4,0);
              ledcWrite(3, 142);
-             Serial.println("low");                                                           //for serial plotter to ensure section is working
+             Serial.println("low");                                                          //for serial plotter to ensure section is working
           }
           else if (switchState ==HIGH)
           {
-             state = 5;                                                                        //move on to next state
-             ucMotorState = 0;                                                                //motors should lock so that robot uses 'breaks'
+             state = 5;                                                                      //move on to next state
+             ucMotorState = 0;                                                               //motors should lock so that robot uses 'breaks'
              move(0);
-             Serial.println("high");                                                            //trace print
-             breakTimer=millis();                                                             //New timer to know how long to climb rope for
+             Serial.println("high");                                                         //trace print
+             breakTimer=millis();                                                            //New timer to know how long to climb rope for
              }
           }
 
@@ -350,7 +288,7 @@ void loop()
           CR1_ulMotorTimerNow=millis();                                                     //Begin timer for polling
           if (CR1_ulMotorTimerNow-breakTimer >=5500)
           {
-            digitalWrite(motorSpinner, LOW);                                                   //Spin rope climbing mechanism
+            digitalWrite(motorSpinner, LOW);                                                //Spin rope climbing mechanism
           }
           
            Serial.println("if here motor should not spin");
