@@ -40,7 +40,7 @@
 */
 
 
-//Pin assignments
+//The code below assigns all pins to the name of device that is connected
 const int ciHeartbeatLED = 2;
 const int ciPB1 = 27;     
 const int ciPB2 = 26;      
@@ -57,6 +57,12 @@ const int ciStepperMotorDir = 22;
 const int ciStepperMotorStep = 21;
 const int motorSpinner = 23;
 const int switchPin = 16;
+
+//Declare variables to be used in program
+int switchState;                              //used to store if limit switch is high or low
+int state = 0;                                //Controls motion of robot
+unsigned long breakTimer=0;                   //VARIABLE FOR TIMER
+
 
 volatile uint32_t vui32test1;
 volatile uint32_t vui32test2;
@@ -117,7 +123,6 @@ boolean btRun = false;
 boolean btToggle = true;
 int iButtonState;
 int iLastButtonState = HIGH;
-int switchState;
 
 // Declare our SK6812 SMART LED object:
 Adafruit_NeoPixel SmartLEDs(2, 25, NEO_GRB + NEO_KHZ400);
@@ -129,9 +134,6 @@ Adafruit_NeoPixel SmartLEDs(2, 25, NEO_GRB + NEO_KHZ400);
 //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
 //   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
-
-   int state = 0; //new variable, should be 0 when trying to go forwards, 1 when trying to go backwards, 2 when ready to commence the finale
-   unsigned long breakTimer=0;//VARIABLE FOR TIMER
 
 void setup() {
    Serial.begin(115200); 
@@ -159,11 +161,6 @@ void setup() {
    pinMode(ciPB1, INPUT_PULLUP);
    pinMode(motorSpinner, OUTPUT);
    pinMode(switchPin, INPUT_PULLUP);
-
-   //SmartLEDs.begin();                          // Initialize Smart LEDs object (required)
-   //SmartLEDs.clear();                          // Set all pixel colours to off
-   //SmartLEDs.show();                           // Send the updated pixel colours to the hardware
-
 }
 
 void loop()
@@ -177,9 +174,9 @@ void loop()
   int iButtonValue = digitalRead(ciPB1);       // read value of push button 1
   if (iButtonValue != iLastButtonState) {      // if value has changed
      CR1_ulLastDebounceTime = millis();        // reset the debouncing timer
-     state = 0;
-     digitalWrite(motorSpinner, LOW);
-     CR1_ulMotorTimerPrevious=millis();
+     state = 0;                               //reset the bot state
+     digitalWrite(motorSpinner, LOW);         //reset the motor
+     CR1_ulMotorTimerPrevious=millis();       //reset timer
   }
 
   if ((millis() - CR1_ulLastDebounceTime) > CR1_clDebounceDelay) {
@@ -189,13 +186,10 @@ void loop()
      // only toggle the run condition if the new button state is LOW
      if (iButtonState == LOW)
      {
-       ENC_ClearLeftOdometer();//restart odometer if robot is reset
-       ENC_ClearRightOdometer();
        btRun = !btRun;
         Serial.println(btRun);
-       // if stopping, reset motor states and stop motors
        if(!btRun)
-       {
+       {                                      //If the robot is not running, it should not be moving
           ucMotorStateIndex = 0; 
           ucMotorState = 0;
           move(0);
@@ -204,9 +198,9 @@ void loop()
      }
    }
  }
- iLastButtonState = iButtonValue;             // store button state
+ iLastButtonState = iButtonValue;             // store button state onto last button state
  
-//Starts a timer 
+//The code below is used to start and set timers essential for Core0
  CR1_ulMainTimerNow = micros();
  if(CR1_ulMainTimerNow - CR1_ulMainTimerPrevious >= CR1_ciMainTimer)
  {
@@ -234,7 +228,7 @@ void loop()
             ENC_SetDistance(100, 100);
             //set directions and speed of each motor
              ledcWrite(2,0);
-             ledcWrite(1, 140);
+             ledcWrite(1, 142);
              ledcWrite(4,0);
              ledcWrite(3, 140); 
 
@@ -248,7 +242,7 @@ void loop()
               if(CR1_ulMotorTimerNow - breakTimer >=250)                                      //Don't move for X seconds
               {
                 CR1_ulMotorTimerPrevious=millis();                                            //reset old timer so that the next state can compare how long it has been occuring for
-                state = 1;
+                state = 1;                                                                    //move to next state
               }
             }
           }
@@ -280,12 +274,12 @@ void loop()
           else if (state == 2)                                                                     //Move forward again
         {
           CR1_ulMotorTimerNow=millis();                                                        //start a timer
-           if( CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <=4800)                          //poll a timer to ensure robot drives forward for correct duration
+           if( CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <=4850)                          //poll a timer to ensure robot drives forward for correct duration
             {
             ENC_SetDistance(100, 100);                                                        //sets the correct distance
             //Set the motors in the correct direction with correct speed
              ledcWrite(2,0);
-             ledcWrite(1, 145);
+             ledcWrite(1, 141);
              ledcWrite(4,0);
              ledcWrite(3, 140);
             breakTimer=millis();                                                              //starts a timer for the breaks
@@ -297,8 +291,8 @@ void loop()
               move(0);
               if(CR1_ulMotorTimerNow - breakTimer >=250)                                      //poll time to ensure it waits 0.25 s
               {
-                CR1_ulMotorTimerPrevious=millis();
-                state = 3;
+                CR1_ulMotorTimerPrevious=millis();                                            //check time
+                state = 3;                                                                    //move to next state
               }
             }
             
@@ -309,7 +303,7 @@ void loop()
             CR1_ulMotorTimerNow=millis();                                                     //Begin timer for polling
             if(CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <= 1000)                         //Poll timer to ensure robot moves turns correct ammount
           {
-            ENC_SetDistance(-(ci8LeftTurn), ci8LeftTurn);
+            ENC_SetDistance(-(ci8LeftTurn), ci8LeftTurn);                                     //Set wheels for turning
             ledcWrite(1,0);
             ledcWrite(2,ui8LeftWorkingSpeed);
             ledcWrite(4,0);
@@ -336,9 +330,9 @@ void loop()
             ENC_SetDistance(100, 100);                                                        //Set appropriate distance
             //Put motors in correct direction with correct speed to continue driving forward
              ledcWrite(2,0);
-             ledcWrite(1, 143);
+             ledcWrite(1, 140);
              ledcWrite(4,0);
-             ledcWrite(3, 140);
+             ledcWrite(3, 142);
              Serial.println("low");                                                           //for serial plotter to ensure section is working
           }
           else if (switchState ==HIGH)
@@ -354,12 +348,12 @@ void loop()
          else if (state == 5)
          {
           CR1_ulMotorTimerNow=millis();                                                     //Begin timer for polling
-          if (CR1_ulMotorTimerNow-breakTimer >=6000)
+          if (CR1_ulMotorTimerNow-breakTimer >=5500)
           {
             digitalWrite(motorSpinner, LOW);                                                   //Spin rope climbing mechanism
           }
           
-           Serial.println("if here motor should not spin");                                   //Trace print for testing
+           Serial.println("if here motor should not spin");
          }
         }
     }
