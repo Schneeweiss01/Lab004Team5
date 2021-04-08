@@ -1,8 +1,8 @@
 
-/* MSE 2202 
- * Western Engineering Design Project Code
- * By: Benjamin Schneeweiss, Annabelle Pundaky, Evan Michaelson, Harrison Angellotti
-*/
+// MSE 2202 
+//Western Engineering Design Project Code
+//By: Benjamin Schneeweiss, Annabelle Pundaky, Evan Michaelson, Harrison Angellotti
+
 
 //The code below assigns all pins to the name of device that is connected
 const int ciPB1 = 27;         
@@ -161,14 +161,14 @@ void loop()
         if (state == 0)                                                                       //To begin navigation around the obstacle the robot will first move forwardss
         {
           CR1_ulMotorTimerNow=millis();                                                       //Start a timer
-           if( CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <=3750)//start correction       //Compare timer to another time that began at the beggining of the robot start. This ensure the robot drives straight for X seconds
+           if( CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <=2750)//start correction       //Compare timer to another time that began at the beggining of the robot start. This ensure the robot drives straight for X seconds
             {
             ENC_SetDistance(100, 100);
             //set directions and speed of each motor
              ledcWrite(2,0);
-             ledcWrite(1, 142);
+             ledcWrite(1, 173); //right motor
              ledcWrite(4,0);
-             ledcWrite(3, 140); 
+             ledcWrite(3, 169); 
 
             breakTimer=millis();
             }
@@ -188,14 +188,14 @@ void loop()
           else if(state ==1)                                                                  //The robot will now have to turn right
           {
             CR1_ulMotorTimerNow=millis();                                                     //Poll a new timer
-            if(CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <= 1000)                        //Continue to turn for X seconds 
+            if(CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <= 490)                        //Continue to turn for X seconds 
           {
             ENC_SetDistance(-(ci8LeftTurn), ci8LeftTurn);                                     //set the distance for the turning phase
           //Set the motors in the correct direction with correct speed
-          ledcWrite(1,0);
-          ledcWrite(2,ui8LeftWorkingSpeed);
-          ledcWrite(4,0);
-          ledcWrite(3,ui8RightWorkingSpeed);
+          ledcWrite(2,0);
+          ledcWrite(1,173);
+          ledcWrite(3,0);
+          ledcWrite(4,167);
             breakTimer=millis();                                                              //start a timer for the breaks
           }
           else                                                                                //Like in case 1 this code simply makes the robot 'breaks' for a certain amount of time
@@ -212,14 +212,14 @@ void loop()
           else if (state == 2)                                                                //Move forward again
         {
           CR1_ulMotorTimerNow=millis();                                                       //start a timer
-           if( CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <=4850)                         //poll a timer to ensure robot drives forward for correct duration
+           if( CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <=2950)          //3050 prev               //poll a timer to ensure robot drives forward for correct duration
             {
             ENC_SetDistance(100, 100);                                                        //sets the correct distance
             //Set the motors in the correct direction with correct speed
              ledcWrite(2,0);
-             ledcWrite(1, 141);
+             ledcWrite(1, 173);
              ledcWrite(4,0);
-             ledcWrite(3, 140);
+             ledcWrite(3, 170);
             breakTimer=millis();                                                              //starts a timer for the breaks
             }
             else                                                                              //Use the 'breaks'                                                            
@@ -236,16 +236,16 @@ void loop()
             
             //if not state 0,
           }
-          else if(state ==3)                                                                  //Once again turn Right
+          else if(state ==3)                                                                  //Once again turn left
           {
             CR1_ulMotorTimerNow=millis();                                                     //Begin timer for polling
-            if(CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <= 1000)                        //Poll timer to ensure robot moves turns correct ammount
+            if(CR1_ulMotorTimerNow - CR1_ulMotorTimerPrevious <= 590)                        //Poll timer to ensure robot moves turns correct ammount
           {
             ENC_SetDistance(-(ci8LeftTurn), ci8LeftTurn);                                     //Set wheels for turning
-            ledcWrite(1,0);
-            ledcWrite(2,ui8LeftWorkingSpeed);
-            ledcWrite(4,0);
-            ledcWrite(3,ui8RightWorkingSpeed);
+            ledcWrite(2,0);
+            ledcWrite(1,173);
+            ledcWrite(3,0);
+            ledcWrite(4,170);
             breakTimer=millis();                                                              //Start a timer for the breaks
           }
           else
@@ -268,9 +268,9 @@ void loop()
             ENC_SetDistance(100, 100);                                                        //Set appropriate distance
             //Put motors in correct direction with correct speed to continue driving forward
              ledcWrite(2,0);
-             ledcWrite(1, 140);
+             ledcWrite(1, 173);
              ledcWrite(4,0);
-             ledcWrite(3, 142);
+             ledcWrite(3, 170);
              Serial.println("low");                                                          //for serial plotter to ensure section is working
           }
           else if (switchState ==HIGH)
@@ -286,7 +286,7 @@ void loop()
          else if (state == 5)
          {
           CR1_ulMotorTimerNow=millis();                                                     //Begin timer for polling
-          if (CR1_ulMotorTimerNow-breakTimer >=5500)
+          if (CR1_ulMotorTimerNow-breakTimer >=6000)
           {
             digitalWrite(motorSpinner, LOW);                                                //Spin rope climbing mechanism
           }
